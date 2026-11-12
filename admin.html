@@ -1,1 +1,68 @@
 
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartCart Kenya Admin</title>
+  <style>
+    body {font-family: Arial; padding: 20px; background: #f3f5f7;}
+    h2 {color: #087443;}
+    input, button {width: 100%; padding: 13px; margin: 8px 0; box-sizing: border-box;}
+    button {background: #087443; color: white; border: 0; border-radius: 5px;}
+    .product {background: white; padding: 12px; margin: 10px 0;}
+  </style>
+</head>
+<body>
+  <h2>SmartCart Kenya Admin</h2>
+  <p>Manage your shop products</p>
+
+  <h3>Add a product</h3>
+  <input id="name" placeholder="Product name">
+  <input id="price" type="number" placeholder="Price in KSh">
+  <input id="image" placeholder="Product image URL">
+  <button onclick="addProduct()">Add Product</button>
+
+  <h3>Products</h3>
+  <div id="products"></div>
+
+  <script>
+    let products = JSON.parse(localStorage.getItem("smartcart_products") || "[]");
+
+    function showProducts() {
+      document.getElementById("products").innerHTML = products.map((p, i) =>
+        `<div class="product">
+          <b>${p.name}</b><br>
+          KSh ${p.price}<br>
+          <button onclick="deleteProduct(${i})">Delete</button>
+        </div>`
+      ).join("");
+    }
+
+    function addProduct() {
+      const name = document.getElementById("name").value.trim();
+      const price = document.getElementById("price").value;
+      const image = document.getElementById("image").value.trim();
+
+      if (!name || !price) {
+        alert("Enter product name and price");
+        return;
+      }
+
+      products.push({name, price, image});
+      localStorage.setItem("smartcart_products", JSON.stringify(products));
+      document.getElementById("name").value = "";
+      document.getElementById("price").value = "";
+      document.getElementById("image").value = "";
+      showProducts();
+    }
+
+    function deleteProduct(i) {
+      products.splice(i, 1);
+      localStorage.setItem("smartcart_products", JSON.stringify(products));
+      showProducts();
+    }
+
+    showProducts();
+  </script>
+</body>
+</html>
