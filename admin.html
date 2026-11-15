@@ -5,74 +5,213 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SmartCart Kenya Admin</title>
   <style>
-    body {font-family: Arial; padding: 20px; background: #f3f5f7;}
-    h2 {color: #087443;}
-    input, button {width: 100%; padding: 13px; margin: 8px 0; box-sizing: border-box;}
-    button {background: #087443; color: white; border: 0; border-radius: 5px;}
-    .product {background: white; padding: 12px; margin: 10px 0;}
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f3f5f7;
+    }
+    h2 { color: #087443; }
+    input, button {
+      width: 100%;
+      padding: 13px;
+      margin: 8px 0;
+      box-sizing: border-box;
+    }
+    button {
+      background: #087443;
+      color: white;
+      border: 0;
+      border-radius: 5px;
+    }
+    .product {
+      background: white;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 6px;
+    }
+    .product img {
+      max-width: 100px;
+      display: block;
+      margin: 8px 0;
+    }
+    #message { color: #087443; }
+    #shop { display: none; }
   </style>
 </head>
 <body>
+
   <h2>SmartCart Kenya Admin</h2>
-  <p>Manage your shop products</p>
 
-  <h3>Add a product</h3>
-  <input id="name" placeholder="Product name">
-  <input id="price" type="number" placeholder="Price in KSh">
-  <input id="image" placeholder="Product image URL">
-  <button onclick="addProduct()">Add Product</button>
+  <div id="login">
+    <h3>Admin Login</h3>
+    <input id="email" type="email" placeholder="Admin email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <p id="loginMessage"></p>
+  </div>
 
-  <h3>Products</h3>
-  <div id="products"></div>
+  <div id="shop">
+    <button onclick="logout()">Logout</button>
+
+    <h3>Add a product</h3>
+    <input id="name" placeholder="Product name">
+    <input id="price" type="number" placeholder="Price in KSh">
+    <input id="quantity" type="number" placeholder="Quantity">
+    <input id="image" placeholder="Product image URL">
+    <button onclick="addProduct()">Add Product</button>
+
+    <p id="message"></p>
+
+    <h3>Products</h3>
+    <div id="products">Loading products...</div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
-    let products = JSON.parse(localStorage.getItem("smartcart_products") || "[]");
+    const firebaseConfig = {
+      apiKey: "AIzaSyC2HiNPPYpv0jhR0Z4JgzX0rMlhTU16MyQ",
+      authDomain: "smartcartkenya-bfb80.firebaseapp.com",
+      projectId: "smartcartkenya-bfb80",
+      storageBucket: "smartcartkenya-bfb80.firebasestorage.app",
+      messagingSenderId: "943240242173",
+      appId: "1:943240242173:web:34fba55de58714d8c66f94",
+      measurementId: "G-BKY3R7NE7C"
+    };
 
-    function showProducts() {
-      document.getElementById("products").innerHTML = products.map((p, i) =>
-        `<div class="product">
-          <b>${p.name}</b><br>
-          KSh ${p.price}<br>
-          <button onclick="deleteProduct(${i})">Delete</button>
-        </div>`
-      ).join("");
+    firebase.initializeApp(firebaseConfig);
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let unsubscribeProducts = null;
+
+    function login() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      auth.signInWithEmailAndPassword(email, password)
+        .catch(error => {
+          document.getElementById("loginMessage").textContent =
+            error.message;
+        });
     }
+
+    function logout() {
+      auth.signOut();
+    }
+
+    auth.onAuthStateChanged(user => {
+      document.getElementById("login").style.display =
+        user ? "none" : "block";
+
+      document.getElementById("shop").style.display =
+        user ? "block" : "none";
+
+      if (user) {
+        loadProducts();
+      } else {
+        if (unsubscribeProducts) {
+          unsubscribeProducts();
+          unsubscribeProducts = null;
+        }
+        document.getElementById("products").innerHTML = "";
+      }
+    });
 
     function addProduct() {
       const name = document.getElementById("name").value.trim();
-      const price = document.getElementById("price").value;
+      const price = Number(document.getElementById("price").value);
+      const quantity = Number(document.getElementById("quantity").value);
       const image = document.getElementById("image").value.trim();
 
-      if (!name || !price) {
-        alert("Enter product name and price");
+      if (!name || document.getElementById("price").value === "" ||
+          document.getElementById("quantity").value === "") {
+        alert("Enter product name, price and quantity.");
         return;
       }
 
-      products.push({name, price, image});
-      localStorage.setItem("smartcart_products", JSON.stringify(products));
-      document.getElementById("name").value = "";
-      document.getElementById("price").value = "";
-      document.getElementById("image").value = "";
-      showProducts();
+      if (price < 0 || quantity < 0) {
+        alert("Price and quantity cannot be negative.");
+        return;
+      }
+
+      db.collection("Products").add({
+        Name: name,
+        Price: price,
+        Quantity: quantity,
+        Image: image
+      })
+      .then(() => {
+        document.getElementById("name").value = "";
+        document.getElementById("price").value = "";
+        document.getElementById("quantity").value = "";
+        document.getElementById("image").value = "";
+        document.getElementById("message").textContent =
+          "Product saved successfully!";
+      })
+      .catch(error => {
+        document.getElementById("message").textContent =
+          "Could not save product: " + error.message;
+      });
     }
 
-    function deleteProduct(i) {
-      products.splice(i, 1);
-      localStorage.setItem("smartcart_products", JSON.stringify(products));
-      showProducts();
+    function loadProducts() {
+      unsubscribeProducts = db.collection("Products")
+        .onSnapshot(snapshot => {
+          const container = document.getElementById("products");
+          container.innerHTML = "";
+
+          if (snapshot.empty) {
+            container.textContent = "No products added yet.";
+            return;
+          }
+
+          snapshot.forEach(doc => {
+            const p = doc.data();
+            const item = document.createElement("div");
+            item.className = "product";
+
+            const title = document.createElement("b");
+            title.textContent = p.Name || "Unnamed product";
+            item.appendChild(title);
+
+            if (p.Image && p.Image.startsWith("https://")) {
+              const img = document.createElement("img");
+              img.src = p.Image;
+              img.alt = p.Name || "Product";
+              item.appendChild(img);
+            }
+
+            const details = document.createElement("p");
+            details.textContent =
+              "KSh " + p.Price + " | Quantity: " + p.Quantity;
+            item.appendChild(details);
+
+            const del = document.createElement("button");
+            del.textContent = "Delete";
+            del.onclick = () => deleteProduct(doc.id);
+            item.appendChild(del);
+
+            container.appendChild(item);
+          });
+        }, error => {
+          document.getElementById("products").textContent =
+            "Could not load products: " + error.message;
+        });
     }
 
-    showProducts();
+    function deleteProduct(id) {
+      if (!confirm("Delete this product?")) return;
+
+      db.collection("Products").doc(id).delete()
+        .catch(error => {
+          alert("Could not delete product: " + error.message);
+        });
+    }
   </script>
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyC2HiNPPYpv0jhR0Z4JgzX0rMlhTU16MyQ",
-  authDomain: "smartcartkenya-bfb80.firebaseapp.com",
-  projectId: "smartcartkenya-bfb80",
-  storageBucket: "smartcartkenya-bfb80.firebasestorage.app",
-  messagingSenderId: "943240242173",
-  appId: "1:943240242173:web:34fba55de58714d8c66f94",
-  measurementId: "G-BKY3R7NE7C"
-};
-</body>e
+
+</body>
 </html>
